@@ -9,6 +9,11 @@
 #I "./packages/HtmlAgilityPack/lib/net40"
 #r "HtmlAgilityPack.dll"
 
+#r "Microsoft.Office.Interop.Excel"
+
+#r "office"
+
+
 #time
 
 open System
@@ -91,5 +96,95 @@ module Assortment =
         ]
 
 
+module Prescription =
+
+    open System
+    open System.IO
+
+    open FSharp.ExcelProvider
+    
+    type Prescription = ExcelFile<"prescriptions.xlsx">
+
+    let get () = (new Prescription()).Data
+
+
+
+
+
+module ExcelWriter =
+    
+    open System
+    open System.IO
+
+    open Microsoft.Office.Interop
+
+    let toArray2D xs = 
+        let rows = xs |> Seq.length
+        let cols = xs |> Seq.head |> Seq.length
+        Array2D.init rows cols (fun r c ->
+            xs |> Seq.item r |> Seq.item c :> obj  
+        ) :> obj
+
+
+    let seqToExcel nm sh xs =
+        let objs = new System.Collections.ArrayList()
+
+        let xlApp = 
+            let app = new Excel.ApplicationClass(Visible = true)
+            objs.Add(app) |> ignore
+            app
+
+        let xlWorkBook = 
+            let book = xlApp.Workbooks.Add()
+            objs.Add(book) |> ignore
+            book
+    
+        let xlSheet = 
+            let sheet = xlWorkBook.Sheets.[1] :?> Excel.Worksheet
+            objs.Add(sheet) |> ignore
+            sheet
+
+        xlSheet.Name <- sh
+
+        let c1 = 
+            let o = xlSheet.Cells.Item(1, 1)
+            objs.Add(o) |> ignore
+            o
+
+        let c2 = 
+            let o = xlSheet.Cells.Item(xs |> Seq.length, xs |> Seq.head |> Seq.length)
+            objs.Add(o) |> ignore
+            o
+
+        let r = 
+            let o = xlSheet.Range(c1, c2)
+            objs.Add(o) |> ignore
+            o
+
+        r.Value2 <- xs |> toArray2D
+
+//        xs
+//        |> Seq.iteri (fun i xs' ->
+//            xs' 
+//            |> Seq.iteri (fun j x -> 
+//                let cell = xlSheet.Cells.Item(i + 1, j + 1) :?> Excel.Range
+//                cell.Item(1, 1) <- (x :> obj)
+//                objs.Add(cell) |> ignore)
+//        )
+
+        let path = Path.Combine(Environment.CurrentDirectory, nm + ".xlsx")
+
+        if File.Exists(path) then File.Delete(path)
+        xlWorkBook.SaveAs(path)
+
+        xlWorkBook.Close(false)
+        xlApp.Quit()
+           
+        GC.Collect()
+        GC.WaitForPendingFinalizers()
+
+        objs
+        |> Seq.cast<obj>
+        |> Seq.iter (Runtime.InteropServices.Marshal.FinalReleaseComObject >> ignore)
 
 
