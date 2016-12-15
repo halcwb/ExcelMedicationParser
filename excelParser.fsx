@@ -55,7 +55,6 @@ module String =
 
     let arrayConcat (cs : char[]) = String.Concat(cs)
 
-// GPKcode	Productnaam	NMNM40	STATUS	ATCCODE
 
 
 
@@ -83,9 +82,9 @@ module Assortment =
         }
 
 
-    let parse () =
+    let parse path =
         [
-            for r in (new Assortment()).Data do
+            for r in (new Assortment(path)).Data do
                 if r.GPKcode |> String.notNullOrEmpty then
                     let gpk = r.GPKcode |> Int32.Parse
                     let atc = r.ATCCODE
@@ -105,8 +104,7 @@ module Prescription =
     
     type Prescription = ExcelFile<"prescriptions.xlsx">
 
-    let get () = (new Prescription()).Data
-
+    let get path = (new Prescription(path)).Data
 
 
 
@@ -120,7 +118,14 @@ module ExcelWriter =
 
     let toArray2D xs = 
         let rows = xs |> Seq.length
-        let cols = xs |> Seq.head |> Seq.length
+        let bln, cols = 
+            xs 
+            |> Seq.fold (fun (b, a) x ->
+                let c = x |> Seq.length
+                b || (a <> 0 && c <> a) ,
+                if a = 0 || c < a then c else a  
+            ) (false, 0)
+        if bln then printfn "Warning: ragged array, data may be lost"
         Array2D.init rows cols (fun r c ->
             xs |> Seq.item r |> Seq.item c :> obj  
         ) :> obj
