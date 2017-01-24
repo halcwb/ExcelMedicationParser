@@ -21,6 +21,7 @@
 !RouteMapping.xlsx
 !UnitMapping.xlsx
 !AssortimentGPK.xlsx
+!prescriptions.xlsx
 
 # Add command and batch files
 !*.cmd
