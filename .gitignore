@@ -18,6 +18,9 @@
 !*.fsx
 
 # Add excel files
+!RouteMapping.xlsx
+!UnitMapping.xlsx
+!AssortimentGPK.xlsx
 
 # Add command and batch files
 !*.cmd

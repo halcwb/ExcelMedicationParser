@@ -69,16 +69,16 @@ module Assortment =
             ATCcode : string
             Name : string
             Label : string
-            Status : string
+            Deel : int
         }
 
-    let createDrug gpk atc nm lb st =
+    let createDrug gpk atc nm lb dl =
         {
             GPKcode = gpk
             ATCcode = atc
             Name = nm
             Label = lb
-            Status = st
+            Deel = dl
         }
 
 
@@ -90,11 +90,15 @@ module Assortment =
                     let atc = r.ATCCODE
                     let nm = r.NMNM40
                     let lb = r.Productnaam
-                    let st = r.STATUS
-                    yield createDrug gpk atc nm lb st
+                    let dl = 
+                        match r.DEELFACTOR with
+                        | null -> 0
+                        | _ -> r.DEELFACTOR |> Int32.Parse
+                    yield createDrug gpk atc nm lb dl
         ]
 
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Prescription =
 
     open System
@@ -107,6 +111,25 @@ module Prescription =
     let get path = (new Prescription(path)).Data
 
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module RouteMapping =
+    
+    open FSharp.ExcelProvider
+
+    type RouteMapping = ExcelFile<"RouteMapping.xlsx">
+
+    let get path = (new RouteMapping(path)).Data
+
+
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module UnitMapping =
+    
+    open FSharp.ExcelProvider
+
+    type UnitMapping = ExcelFile<"UnitMapping.xlsx">
+
+    let get path = (new UnitMapping(path)).Data
 
 
 module ExcelWriter =
