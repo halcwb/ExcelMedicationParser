@@ -56,12 +56,10 @@ module String =
     let arrayConcat (cs : char[]) = String.Concat(cs)
 
 
-
-
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Assortment =
 
-    type Assortment = ExcelFile<"AssortimentGPK.xlsx">
+    type Assortment = ExcelFile<"template/AssortimentGPKTemplate_01.xlsx">
 
     type Drug = 
         {
@@ -81,21 +79,37 @@ module Assortment =
             Deel = dl
         }
 
+    let parse (r: Assortment.Row) =
+        try
+            if r.GPKcode |> String.notNullOrEmpty then
+                let gpk = 
+                    let bl, code = r.GPKcode |> Int32.TryParse 
+                    if bl then code else 0
+                let atc = r.ATCCODE
+                let nm = r.NMNM40
+                let lb = r.Productnaam
+                let dl = 
+                    match r.DEELFACTOR with
+                    | null -> 0
+                    | _ ->
+                        let bl, df = r.DEELFACTOR |> Int32.TryParse
+                        if bl then df else 0
+                if gpk = 0 |> not then createDrug gpk atc nm lb dl |> Some
+                else None
+            else None
+        with
+        | e ->
+            printfn "Could not parse %A" r
+            printfn "%s" e.Message
+            None
 
-    let parse path =
-        [
+    let get path =
+        seq {
             for r in (new Assortment(path)).Data do
-                if r.GPKcode |> String.notNullOrEmpty then
-                    let gpk = r.GPKcode |> Int32.Parse
-                    let atc = r.ATCCODE
-                    let nm = r.NMNM40
-                    let lb = r.Productnaam
-                    let dl = 
-                        match r.DEELFACTOR with
-                        | null -> 0
-                        | _ -> r.DEELFACTOR |> Int32.Parse
-                    yield createDrug gpk atc nm lb dl
-        ]
+                match parse r with
+                | Some r' -> yield r'
+                | None -> ()
+        }
 
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -105,10 +119,82 @@ module Prescription =
     open System.IO
 
     open FSharp.ExcelProvider
-    
-    type Prescription = ExcelFile<"prescriptions.xlsx">
 
-    let get path = (new Prescription(path)).Data
+    type Prescription =
+        {
+            Department : string
+            HospitalNumber : int
+            LastName : string
+            FirstName : string
+            BirthDate : DateTime Option
+            GestAgeWeeks : int Option
+            GestAgeDays : int Option
+            BirthWeight : float Option
+            BirthWghtUnit : string
+            Weight : float Option
+            WeightUnit : string
+            Start : DateTime option
+            StartPrescriber : string
+            Stop : DateTime Option
+            StopPrescriber : string
+            Generic : string
+            Route : string
+            Frequency : float Option
+            FreqUnit : string
+            Dose : float Option
+            DoseUnit : string
+            DoseTotal : float Option
+            TotalUnit : string
+            Text : string
+        }
+    
+    type Prescriptions = ExcelFile<"template/PrescriptionTemplate_03.xlsx">
+
+    let fromRow (p: Prescriptions.Row) =
+        let getDate dt = 
+            if dt = DateTime(1, 1, 1) then None else dt |> Some
+
+        try 
+            {
+                Department = p.Department
+                HospitalNumber = p.HospitalNumber |> int
+                LastName = p.LastName
+                FirstName = p.FirstName
+                BirthDate = p.BirthDate |> getDate
+                GestAgeWeeks = p.GestAgeWeeks |> int |> Some
+                GestAgeDays = p.GestAgeDays |> int |> Some
+                BirthWeight = p.BirthWeight |> Some
+                BirthWghtUnit = p.BirthWghtUnit
+                Weight = p.Weight |> Some
+                WeightUnit = p.WeightUnit
+                Start = p.StartDate |> getDate
+                StartPrescriber = p.StartPrescriber
+                Stop = p.StopDate |> getDate
+                StopPrescriber = p.StopPrescriber
+                Generic = p.Generic
+                Route = p.Route
+                Frequency = p.Frequency |> Some
+                FreqUnit = p.FreqUnit
+                Dose = p.Dose |> Some
+                DoseUnit = p.DoseUnit
+                DoseTotal = p.DoseTotal |> Some
+                TotalUnit = p.TotalUnit
+                Text = p.Text                    
+            }
+            |> Some
+        with
+        | e -> 
+            printfn "Could not parse %A" p
+            printfn "%s" e.Message
+            None
+
+    let get path = 
+        seq { 
+            for p in (new Prescriptions(path)).Data do
+                match p |> fromRow with
+                | Some p' -> yield p'
+                | None -> ()
+        }
 
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -116,10 +202,9 @@ module RouteMapping =
     
     open FSharp.ExcelProvider
 
-    type RouteMapping = ExcelFile<"RouteMapping.xlsx">
+    type RouteMapping = ExcelFile<"template/RouteMappingTemplate_01.xlsx">
 
     let get path = (new RouteMapping(path)).Data
-
 
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
@@ -127,7 +212,7 @@ module UnitMapping =
     
     open FSharp.ExcelProvider
 
-    type UnitMapping = ExcelFile<"UnitMapping.xlsx">
+    type UnitMapping = ExcelFile<"template/UnitMappingTemplate_01.xlsx">
 
     let get path = (new UnitMapping(path)).Data
 
@@ -191,15 +276,6 @@ module ExcelWriter =
 
         r.Value2 <- xs |> toArray2D
 
-//        xs
-//        |> Seq.iteri (fun i xs' ->
-//            xs' 
-//            |> Seq.iteri (fun j x -> 
-//                let cell = xlSheet.Cells.Item(i + 1, j + 1) :?> Excel.Range
-//                cell.Item(1, 1) <- (x :> obj)
-//                objs.Add(cell) |> ignore)
-//        )
-
         let path = Path.Combine(Environment.CurrentDirectory, nm + ".xlsx")
 
         if File.Exists(path) then File.Delete(path)
@@ -216,3 +292,21 @@ module ExcelWriter =
         |> Seq.iter (Runtime.InteropServices.Marshal.FinalReleaseComObject >> ignore)
 
 
+//let combine f p = IO.Path.Combine(p, f)
+//
+//let parent p =
+//    let d = (new System.IO.DirectoryInfo(p))
+//    d.Parent.FullName
+//
+//let path =
+//    System.Environment.CurrentDirectory
+//    |> parent
+//    |> combine "GenPresCheck"
+//    |> combine "NEO.xlsx"
+//
+//for p in Prescription.Prescriptions(path).Data do printfn "%A" (p.HospitalNumber)
+//
+//Prescription.get path
+//|> Seq.filter(fun p -> 
+//    p.Stop < p.Start
+//)
