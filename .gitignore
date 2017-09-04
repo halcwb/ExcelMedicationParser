@@ -17,12 +17,6 @@
 # Add fsx files
 !*.fsx
 
-# Add excel files
-!RouteMapping.xlsx
-!UnitMapping.xlsx
-!AssortimentGPK.xlsx
-!prescriptions.xlsx
-
 # Add command and batch files
 !*.cmd
 !*.sh
@@ -81,4 +75,8 @@ publishnuget.cmd
 !/012014/
 !/012014/*
 !/012014/*.*
+
+# Add template files
+!/template/
+!/template/*.xlsx
 
